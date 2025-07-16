@@ -1,2 +1,33 @@
-AI Vocabulary ArchitectAn interactive, AI-powered web application designed to help users master advanced English vocabulary through quizzes, flashcards, and intelligent, context-aware learning tools.Live Demo🚀 FeaturesThis single-page application is built with vanilla JavaScript and Tailwind CSS and leverages the Google Gemini API to provide a rich, interactive learning experience.Core Learning ToolsInteractive Quizzes: Test your knowledge of synonyms and antonyms with multiple-choice questions.Customizable Quiz Length: Choose to be quizzed on 10, 20, 50, or all words in a category.Flashcard Review: Study the full vocabulary list with interactive, flippable cards.Instant Search: Quickly find any word in the flashcard decks with a real-time search bar.Performance Tracking: Visualize your quiz results with a dynamic chart showing your score and areas for improvement.✨ AI-Powered Features (Powered by Google Gemini)Word of the Day: Start each session with a new, interesting word and its definition, provided by the AI.AI Hints: Get a subtle, contextual hint during quizzes if you're stuck on a question (with a small score penalty to keep it challenging!).Explain Nuances: After answering a question, ask the AI to explain the subtle differences between the word and its incorrect options.Story Weaver: Select 2-5 words in the flashcard section and have the AI write a short story or paragraph that uses them all, helping you understand their usage in a narrative context.Generate Sentences: Get a clear example sentence for any word in the flashcard deck to see how it's used.Review Mistakes: After a quiz, you can launch a new, personalized quiz consisting only of the questions you answered incorrectly.🛠️ How to UseRunning the Live DemoSimply visit the Live Demo link to start using the application immediately.Running LocallyTo run this project on your local machine and use the AI features, follow these steps:Clone the repository:git clone https://github.com/your-username/your-repo-name.git
-Open the index.html file:Navigate to the project directory and open the index.html file in your web browser.Set up your API Key:The AI features require a Google AI API key.Click the settings icon (⚙️) in the top-right corner of the application.A modal will appear prompting you for an API key.You can get a free API key from Google AI Studio.Paste your key into the input field and click "Save Key". The key will be saved in your browser's local storage for future sessions.💻 Technologies UsedHTML5CSS3 with Tailwind CSSJavaScript (ES6+)Google Gemini API for AI-powered featuresChart.js for data visualization📜 LicenseThis project is licensed under the MIT License - see the LICENSE.md file for details.🤝 ContributingContributions, issues, and feature requests are welcome! Feel free to check the issues page.📧 ContactDhruv Bansal - [Your Email]Project Link: https://github.com/dhruvkbansal/AntonymSynonym
+# AI Vocabulary Architect
+
+An interactive web app to master advanced English vocabulary using quizzes, flashcards, and AI-powered learning tools.
+
+**[View Live Demo](https://dhruvkbansal.github.io/AntonymSynonym/)**
+
+-----
+
+## ✨ Key Features
+
+  * **Interactive Quizzes & Flashcards:** Test and review over 200 synonyms and antonyms with customizable quiz lengths (10, 20, 50, or all).
+  * **AI-Powered Learning (Google Gemini):**
+      * Get a **Word of the Day** to learn something new each session.
+      * Ask for **Hints** or detailed **Explanations** during quizzes.
+      * Use the **Story Weaver** to see multiple words used together in a narrative.
+  * **Personalized Study:** A real-time search lets you find any word instantly, and the "Review Mistakes" mode creates a new quiz from only your incorrect answers.
+  * **Performance Tracking:** Visualize your quiz score with a dynamic chart.
+
+-----
+
+## 🚀 Running Locally
+
+1.  Clone this repository.
+2.  Open the `index.html` file in any modern web browser.
+3.  **To enable AI features**, click the settings icon (⚙️) in the top-right corner. You will need to add your own Google AI API key.
+      * You can get a free key from **[Google AI Studio](https://aistudio.google.com/app/apikey)**.
+      * Your key is saved in your browser's local storage, so you only need to enter it once.
+
+-----
+
+## 🛠️ Tech Stack
+
+**Frontend:** HTML | Tailwind CSS | Vanilla JavaScript | Chart.js | Google Gemini API
