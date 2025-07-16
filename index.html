@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Soothing Academia (Slate, Sky, Amber, Emerald, Rose) -->
     <!-- Application Structure Plan: A task-oriented SPA with enhanced UI/UX. The structure remains Home, Quiz, and Review. Home now features a dynamic "Word of the Day" and a user-selectable quiz length. The Quiz view adds an AI "Hint" system and a "Review Mistakes" loop. The Review (Flashcard) view now includes a real-time search, plus a "Story Weaver" feature where users can select words to be woven into a narrative by Gemini. This structure deepens engagement by adding layers of interaction and AI-driven content creation, making the learning process more dynamic and personalized. Hardcoded API key for seamless UX. -->
-    <!-- Visualization & Content Choices: All 200+ words are integrated. Goal: Set Quiz Length -> UI: Button group for 10, 20, 50, All questions. Goal: Engage on entry -> "Word of the Day" (Gemini). Goal: Assist during quiz -> "Hint" button (Gemini). Goal: Personalized Learning -> "Review Mistakes" quiz loop. Goal: Contextual Understanding -> "Story Weaver" (Gemini) allows users to select words and see them used in a narrative. Goal: Targeted Review -> Search bar filters flashcards. Goal: Show Popularity -> Visitor counter in footer. -->
+    <!-- Visualization & Content Choices: All 200+ words are integrated. Goal: Set Quiz Length -> UI: Button group for 10, 20, 50, All questions. Goal: Engage on entry -> "Word of the Day" (Gemini). Goal: Assist during quiz -> "Hint" button (Gemini). Goal: Personalized Learning -> "Review Mistakes" quiz loop. Goal: Contextual Understanding -> "Story Weaver" (Gemini) allows users to select words and see them used in a narrative. Goal: Targeted Review -> Search bar filters flashcards. Goal: Show Popularity -> Visitor counter in footer using a third-party API. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
@@ -189,13 +189,10 @@
         }
 
         function parseGeminiResponse(text) {
-            let html = text
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>');
-            
+            let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             const lines = html.split('\n').filter(line => line.trim() !== '');
-            if (lines.every(line => line.trim().startsWith('<em>'))) {
-                 html = '<ul>' + lines.map(line => `<li>${line.replace(/<\/?em>/g, '')}</li>`).join('') + '</ul>';
+            if (lines.length > 1 && lines.every(line => line.trim().startsWith('*'))) {
+                 html = '<ul>' + lines.map(line => `<li>${line.replace(/^\s*\*\s*/, '')}</li>`).join('') + '</ul>';
             } else {
                  html = lines.map(line => `<p>${line}</p>`).join('');
             }
@@ -315,7 +312,7 @@
             explainBtn.classList.remove('hidden');
             explainBtn.onclick = () => {
                 const word = document.getElementById('question-word').textContent;
-                const prompt = `Explain the nuanced differences between the word "${word}" and these other words: ${questionData.options.join(', ')}. Keep the explanation concise and easy to understand. Format the key words in bold.`;
+                const prompt = `Explain the nuanced differences between the word "${word}" and these other words: ${questionData.options.join(', ')}. Keep the explanation concise and easy to understand. Format the key words in bold using markdown like **word**.`;
                 const responseArea = document.getElementById('gemini-quiz-response-area');
                 callGeminiAPI(prompt, responseArea);
                 explainBtn.disabled = true;
@@ -528,12 +525,12 @@
 
         function updateVisitorCount() {
             const countElement = document.getElementById('visitor-count');
-            const apiUrl = 'https://api.countapi.xyz/hit/dhruvkbansal-vocab-app/visits';
+            const apiUrl = 'https://api.counterapi.dev/v1/dhruvkbansal/vocab-app/up';
 
             fetch(apiUrl)
                 .then(res => res.json())
                 .then(data => {
-                    countElement.textContent = data.value.toLocaleString();
+                    countElement.textContent = data.count.toLocaleString();
                 })
                 .catch(error => {
                     console.error("Visitor count failed:", error);
