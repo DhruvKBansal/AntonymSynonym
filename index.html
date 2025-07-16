@@ -10,12 +10,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Soothing Academia (Slate, Sky, Amber, Emerald, Rose) -->
-    <!-- Application Structure Plan: A task-oriented SPA with enhanced UI/UX. The structure remains Home, Quiz, and Review. Home now features a dynamic "Word of the Day" from Gemini to engage users immediately. The Quiz view adds an AI "Hint" system to aid learning. The Review (Flashcard) view now includes a real-time search/filter bar for targeted study. This structure deepens user engagement by adding layers of interaction and AI-driven content, making the learning process more dynamic and personalized. -->
-    <!-- Visualization & Content Choices: All 200+ words from source documents are now integrated. Goal: Engage user on entry -> Presentation: "Word of the Day" card -> Interaction: Fetches new word from Gemini on load. Goal: Assist during quiz -> Presentation: "Hint" button -> Interaction: User clicks for AI hint, with a small score penalty. Goal: Targeted Review -> Presentation: Search bar above flashcards -> Interaction: User types to filter flashcards in real-time. Other elements (Quiz, Flashcards, Results Chart) are retained but visually polished. -->
+    <!-- Application Structure Plan: A task-oriented SPA with enhanced UI/UX. The structure remains Home, Quiz, and Review. Home features a dynamic "Word of the Day". The Quiz view adds an AI "Hint" system and a "Review Mistakes" loop. The Review (Flashcard) view now includes a real-time search, plus a "Story Weaver" feature where users can select words to be woven into a narrative by Gemini. This structure deepens engagement by adding layers of AI-driven content creation and personalized learning paths. Added API Key modal for local use. -->
+    <!-- Visualization & Content Choices: All 200+ words are integrated. Goal: Engage on entry -> "Word of the Day" (Gemini). Goal: Assist during quiz -> "Hint" button (Gemini). Goal: Personalized Learning -> "Review Mistakes" quiz loop. Goal: Contextual Understanding -> "Story Weaver" (Gemini) allows users to select words and see them used in a narrative. Goal: Targeted Review -> Search bar filters flashcards. Other elements (Quiz, Flashcards, Results Chart) are visually polished. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
-        .view { transition: opacity 0.5s, transform 0.5s; }
+        .view { transition: opacity 0.5s, transform 0.5s; width: 100%; }
         .view.hidden { opacity: 0; transform: scale(0.98); pointer-events: none; position: absolute; }
         .chart-container { position: relative; width: 100%; max-width: 350px; margin-left: auto; margin-right: auto; height: 300px; max-height: 350px; }
         .flip-card { perspective: 1000px; }
@@ -27,16 +27,25 @@
         .correct { background-color: #dcfce7 !important; border-color: #22c55e !important; color: #166534 !important; transform: scale(1.02); }
         .incorrect { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
         .gemini-response { background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 1rem; margin-top: 1rem; border-radius: 0.25rem; color: #b45309; text-align: left; animation: fadeIn 0.5s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .star-checkbox { position: absolute; top: 10px; right: 10px; z-index: 10; cursor: pointer; font-size: 1.5rem; color: #cbd5e1; transition: color 0.2s, transform 0.2s; }
+        .star-checkbox:hover { transform: scale(1.2); }
+        .star-checkbox.selected { color: #f59e0b; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; transition: opacity 0.3s; }
+        .modal-content { background-color: white; padding: 2rem; border-radius: 0.75rem; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); max-width: 500px; width: 90%; }
     </style>
 </head>
 <body class="text-slate-800">
 
     <div id="app" class="min-h-screen flex flex-col items-center p-4">
 
-        <header class="w-full max-w-5xl mx-auto text-center mb-8">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900">AI Vocabulary Architect</h1>
-            <p class="text-slate-600 mt-2 text-lg">Build a stronger vocabulary with intelligent tools.</p>
+        <header class="w-full max-w-5xl mx-auto text-center mb-8 flex justify-between items-center">
+            <div></div>
+            <div>
+                <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900">AI Vocabulary Architect</h1>
+                <p class="text-slate-600 mt-2 text-lg">Build a stronger vocabulary with intelligent tools.</p>
+            </div>
+            <button onclick="openSettingsModal()" class="text-3xl p-2 rounded-full hover:bg-slate-200 transition-colors" title="API Key Settings">⚙️</button>
         </header>
 
         <main id="main-content" class="w-full max-w-5xl mx-auto relative">
@@ -62,9 +71,7 @@
                     </div>
                     <div id="word-of-the-day" class="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-8 rounded-xl shadow-lg flex flex-col justify-center">
                         <h3 class="text-xl font-bold mb-4 text-amber-400">✨ Word of the Day</h3>
-                        <div id="wotd-content">
-                            <p>Loading...</p>
-                        </div>
+                        <div id="wotd-content"><p>Loading...</p></div>
                     </div>
                 </div>
             </div>
@@ -75,25 +82,18 @@
                         <h2 id="quiz-title" class="text-2xl font-bold text-slate-900">Quiz</h2>
                         <span id="quiz-progress" class="text-slate-600 font-medium"></span>
                     </div>
-                    <div class="w-full bg-slate-200 rounded-full h-2.5 mb-6">
-                        <div id="progress-bar" class="bg-sky-500 h-2.5 rounded-full transition-all duration-300"></div>
-                    </div>
-                    
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 mb-6"><div id="progress-bar" class="bg-sky-500 h-2.5 rounded-full transition-all duration-300"></div></div>
                     <div id="question-container" class="text-center">
                         <p class="text-slate-600 mb-2" id="question-prompt"></p>
                         <h3 id="question-word" class="text-4xl font-bold mb-8"></h3>
                         <div id="options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                     </div>
-
                     <div id="feedback-container" class="mt-6 text-center min-h-[100px]">
                          <p id="feedback-text" class="text-lg font-semibold h-8"></p>
                          <div id="gemini-quiz-response-area" class="mt-4"></div>
                     </div>
-
                     <div class="mt-6 flex justify-between items-center">
-                        <div>
-                            <button id="hint-btn" onclick="getHint()" class="bg-amber-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-amber-600 transition-colors">💡 Hint (-0.5 pts)</button>
-                        </div>
+                        <div><button id="hint-btn" onclick="getHint()" class="bg-amber-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-amber-600 transition-colors">💡 Hint (-0.5 pts)</button></div>
                         <div>
                             <button id="explain-btn" class="bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-emerald-600 transition-colors hidden mr-4">✨ Explain Nuances</button>
                             <button id="next-btn" class="bg-sky-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-sky-700 transition-colors hidden">Next</button>
@@ -104,13 +104,14 @@
 
             <div id="results-view" class="view hidden">
                  <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-lg mx-auto">
-                    <h2 class="text-3xl font-bold text-slate-900 mb-4">Quiz Complete!</h2>
+                    <h2 id="results-title" class="text-3xl font-bold text-slate-900 mb-4">Quiz Complete!</h2>
                     <p class="text-slate-600 text-lg mb-2">You scored:</p>
                     <p id="final-score" class="text-6xl font-extrabold text-sky-600 mb-6"></p>
-                    <div class="chart-container">
-                        <canvas id="results-chart"></canvas>
+                    <div class="chart-container"><canvas id="results-chart"></canvas></div>
+                    <div class="mt-8 flex gap-4 justify-center">
+                        <button onclick="showHome()" class="bg-slate-800 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-900 transition-colors">Back to Home</button>
+                        <button id="review-mistakes-btn" class="bg-rose-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-rose-700 transition-colors hidden">📝 Review Mistakes</button>
                     </div>
-                    <button onclick="showHome()" class="mt-8 bg-slate-800 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-900 transition-colors">Back to Home</button>
                 </div>
             </div>
             
@@ -118,16 +119,33 @@
                 <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl">
                      <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <h2 id="review-title" class="text-3xl font-bold text-slate-900">Flashcard Review</h2>
-                        <div class="w-full md:w-1/2">
-                            <input type="text" id="search-bar" placeholder="🔎 Search for a word..." class="w-full p-3 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition">
-                        </div>
+                        <div class="w-full md:w-1/2"><input type="text" id="search-bar" placeholder="🔎 Search for a word..." class="w-full p-3 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"></div>
                         <button onclick="showHome()" class="w-full md:w-auto bg-slate-800 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-900 transition-colors">Back to Home</button>
                     </div>
-                    <div id="flashcard-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div id="story-weaver-controls" class="my-4 p-4 bg-slate-100 rounded-lg text-center">
+                        <p class="text-slate-700 mb-2">Select 2-5 words (using the ★ icon) to weave into a story!</p>
+                        <button id="story-weaver-btn" class="bg-emerald-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-emerald-700 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed" disabled>✨ Weave a Story</button>
+                        <div id="story-weaver-response-area" class="mt-4"></div>
                     </div>
+                    <div id="flashcard-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
                 </div>
             </div>
         </main>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold mb-4">API Key Settings</h2>
+            <p class="text-slate-600 mb-4">To use the AI features on your local device, you need a Google AI API key. You can get one for free from Google AI Studio.</p>
+            <label for="api-key-input" class="font-semibold text-slate-700">Your Google AI API Key:</label>
+            <input type="password" id="api-key-input" class="w-full p-2 border-2 border-slate-300 rounded-lg mt-1 mb-2">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-sky-600 hover:underline">Get your API Key here &rarr;</a>
+            <div id="api-key-status" class="mt-2 text-sm h-5"></div>
+            <div class="mt-4 flex justify-end gap-4">
+                <button onclick="closeSettingsModal()" class="bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg hover:bg-slate-300">Cancel</button>
+                <button onclick="saveApiKey()" class="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700">Save Key</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -135,13 +153,48 @@
         const antonymData=[{word:"Abate",definition:"To become less intense.",options:["vague","definite","modest","intensify"],correct:"intensify"},{word:"Aberration",definition:"A departure from what is normal.",options:["normality","selfish","thorough","abundance"],correct:"normality"},{word:"Abhor",definition:"To regard with disgust and hate.",options:["exciting","admire","indulge","unproductive"],correct:"admire"},{word:"Abstain",definition:"To restrain from doing something.",options:["honesty","cowardly","indulge","extraordinary"],correct:"indulge"},{word:"Acquiesce",definition:"To accept something reluctantly.",options:["neglect","convict","oppose","depressed"],correct:"oppose"},{word:"Adamant",definition:"Refusing to change one's mind.",options:["virtuous","flexible","aggravate","malevolent"],correct:"flexible"},{word:"Altruistic",definition:"Selfless concern for others.",options:["industrious","apathetic","selfish","petty"],correct:"selfish"},{word:"Ambiguous",definition:"Open to more than one interpretation.",options:["clear","modern","wordy","unlikely"],correct:"clear"},{word:"Ameliorate",definition:"To make something bad better.",options:["worsen","petty","enthusiastic","modest"],correct:"worsen"},{word:"Apathetic",definition:"Showing no interest or enthusiasm.",options:["enthusiastic","miserable","provoke","cowardly"],correct:"enthusiastic"},{word:"Arrogant",definition:"Having an exaggerated sense of importance.",options:["humble","apathetic","agitation","energize"],correct:"humble"},{word:"Audacious",definition:"Willing to take bold risks.",options:["originality","timid","respect","hidden"],correct:"timid"},{word:"Austere",definition:"Severe or strict in manner.",options:["luxurious","modest","narrow","benevolent"],correct:"luxurious"},{word:"Benevolent",definition:"Well meaning and kindly.",options:["originality","common","virtuous","malevolent"],correct:"malevolent"},{word:"Brevity",definition:"Concise and exact use of words.",options:["lengthiness","extraordinary","harmful","respect"],correct:"lengthiness"},{word:"Cacophony",definition:"A harsh, discordant mixture of sounds.",options:["excellent","generosity","harmony","malevolent"],correct:"harmony"},{word:"Capricious",definition:"Given to sudden changes of mood.",options:["consistent","respect","changeable","original"],correct:"consistent"},{word:"Circumspect",definition:"Wary and unwilling to take risks.",options:["preserve","hidden","disrespect","reckless"],correct:"reckless"},{word:"Coerce",definition:"To persuade by using force or threats.",options:["persuade","normality","wordy","indulge"],correct:"persuade"},{word:"Concise",definition:"Giving information clearly in few words.",options:["honesty","sloppy","wordy","preserve"],correct:"wordy"},{word:"Concur",definition:"To agree.",options:["disagree","honesty","excellent","seriousness"],correct:"disagree"},{word:"Conspicuous",definition:"Clearly visible.",options:["lazy","moral","hidden","timid"],correct:"hidden"},{word:"Contrite",definition:"Feeling remorse.",options:["seriousness","serious","unrepentant","abundance"],correct:"unrepentant"},{word:"Copious",definition:"Abundant in supply.",options:["industrious","luxurious","scarce","taciturn"],correct:"scarce"},{word:"Cryptic",definition:"Having a mysterious meaning.",options:["consistent","cowardly","obvious","generosity"],correct:"obvious"},{word:"Cursory",definition:"Hasty and not thorough.",options:["oppose","wordy","thorough","overlook"],correct:"thorough"},{word:"Dauntless",definition:"Fearless and determined.",options:["cowardly","timid","exciting","unlikely"],correct:"timid"},{word:"Dearth",definition:"A scarcity or lack of something.",options:["malevolent","common","abundance","beneficial"],correct:"abundance"},{word:"Debacle",definition:"A sudden and ignominious failure.",options:["competent","success","unrepentant","apathetic"],correct:"success"},{word:"Decadent",definition:"In a state of moral decline.",options:["moral","clear","serious","generosity"],correct:"moral"},{word:"Deference",definition:"Humble submission and respect.",options:["careless","lazy","disrespect","timid"],correct:"disrespect"},{word:"Deleterious",definition:"Causing harm or damage.",options:["disagree","beneficial","apathetic","obvious"],correct:"beneficial"},{word:"Diligent",definition:"Hard-working and conscientious.",options:["indulge","lazy","famous","harmless"],correct:"lazy"},{word:"Discern",definition:"To perceive or recognize something.",options:["energize","changeable","convict","overlook"],correct:"overlook"},{word:"Disdain",definition:"The feeling that someone is unworthy of respect.",options:["vague","scarce","serious","respect"],correct:"respect"},{word:"Disparage",definition:"To regard as being of little worth.",options:["reckless","cheerful","original","praise"],correct:"praise"},{word:"Docile",definition:"Ready to accept control; submissive.",options:["timid","stubborn","lazy","cheerful"],correct:"stubborn"},{word:"Dormant",definition:"Inactive.",options:["original","active","moral","respect"],correct:"active"},{word:"Ebullient",definition:"Cheerful and full of energy.",options:["introverted","depressed","definite","agitation"],correct:"depressed"},{word:"Eclectic",definition:"Deriving ideas from a broad range of sources.",options:["disrespect","narrow","consistent","changeable"],correct:"narrow"},{word:"Efface",definition:"To erase a mark from a surface.",options:["unrepentant","beneficial","preserve","modern"],correct:"preserve"},{word:"Elated",definition:"Ecstatically happy.",options:["calm","excellent","original","miserable"],correct:"miserable"},{word:"Eloquent",definition:"Fluent or persuasive in speaking or writing.",options:["inarticulate","indulge","normality","lazy"],correct:"inarticulate"},{word:"Emulate",definition:"To match or surpass by imitation.",options:["neglect","calm","obvious","aggravate"],correct:"neglect"},{word:"Enervate",definition:"To cause to feel drained of energy.",options:["consistent","careless","agitation","energize"],correct:"energize"},{word:"Ephemeral",definition:"Lasting for a very short time.",options:["hinder","clear","depressed","permanent"],correct:"permanent"},{word:"Equanimity",definition:"Mental calmness and composure.",options:["lengthiness","virtuous","industrious","agitation"],correct:"agitation"},{word:"Equivocal",definition:"Open to more than one interpretation.",options:["definite","excellent","humble","yielding"],correct:"definite"},{word:"Esoteric",definition:"Understood by only a few.",options:["sloppy","worsen","common","reckless"],correct:"common"},{word:"Evanescent",definition:"Quickly fading from sight.",options:["indulge","enduring","industrious","changeable"],correct:"enduring"},{word:"Exacerbate",definition:"To make a problem worse.",options:["benevolent","alleviate","originality","unproductive"],correct:"alleviate"},{word:"Exonerate",definition:"To absolve from blame.",options:["convict","secure","alleviate","miserable"],correct:"convict"},{word:"Facilitate",definition:"To make an action or process easy.",options:["luxurious","lazy","hinder","aggravate"],correct:"hinder"},{word:"Fallacious",definition:"Based on a mistaken belief.",options:["excellent","truthful","modest","changeable"],correct:"truthful"},{word:"Fastidious",definition:"Very attentive to detail.",options:["careless","verbose","humble","enduring"],correct:"careless"},{word:"Fervent",definition:"Having passionate intensity.",options:["apathetic","indulge","worsen","overlook"],correct:"apathetic"},{word:"Flagrant",definition:"Conspicuously offensive.",options:["respectful","subtle","alleviate","humble"],correct:"subtle"},{word:"Fortuitous",definition:"Happening by chance.",options:["intentional","secure","cheerful","yielding"],correct:"intentional"},{word:"Frivolous",definition:"Not having any serious purpose.",options:["modest","luxurious","introverted","serious"],correct:"serious"},{word:"Furtive",definition:"Attempting to avoid notice.",options:["open","preserve","miserable","normality"],correct:"open"},{word:"Garrulous",definition:"Excessively talkative.",options:["neglect","taciturn","modest","disrespect"],correct:"taciturn"},{word:"Gregarious",definition:"Fond of company; sociable.",options:["introverted","overlook","humble","unlikely"],correct:"introverted"},{word:"Guile",definition:"Sly or cunning intelligence.",options:["persuade","moral","honesty","modest"],correct:"honesty"},{word:"Hackneyed",definition:"Overused and unoriginal.",options:["verbose","original","abundance","inarticulate"],correct:"original"},{word:"Haughty",definition:"Arrogantly superior.",options:["cautious","yielding","unrepentant","modest"],correct:"modest"},{word:"Immutable",definition:"Unchanging over time.",options:["changeable","enduring","originality","scarce"],correct:"changeable"},{word:"Impetuous",definition:"Acting quickly without thought.",options:["harmony","luxurious","easy","cautious"],correct:"cautious"},{word:"Implacable",definition:"Unable to be placated.",options:["neutral","yielding","lengthiness","malevolent"],correct:"yielding"},{word:"Impudent",definition:"Not showing due respect.",options:["timid","famous","verbose","respectful"],correct:"respectful"},{word:"Inadvertent",definition:"Unintentional.",options:["virtuous","moral","benevolent","intentional"],correct:"intentional"},{word:"Incisive",definition:"Intelligently analytical and clear-thinking.",options:["vague","fallible","hinder","obvious"],correct:"vague"},{word:"Indolent",definition:"Wanting to avoid activity; lazy.",options:["agitation","neutral","easy","industrious"],correct:"industrious"},{word:"Inept",definition:"Having or showing no skill; clumsy.",options:["luxurious","neglect","extraordinary","competent"],correct:"competent"},{word:"Infallible",definition:"Incapable of making mistakes.",options:["worsen","industrious","fallible","inarticulate"],correct:"fallible"},{word:"Innocuous",definition:"Not harmful or offensive.",options:["harmful","miserable","fallible","provoke"],correct:"harmful"},{word:"Insipid",definition:"Lacking flavor; dull.",options:["calm","exciting","enduring","intensify"],correct:"exciting"},{word:"Intrepid",definition:"Fearless; adventurous.",options:["abundance","aggravate","enduring","fearful"],correct:"fearful"},{word:"Irate",definition:"Feeling great anger.",options:["calm","clear","petty","harmful"],correct:"calm"},{word:"Laconic",definition:"Using very few words.",options:["verbose","secure","overlook","careless"],correct:"verbose"},{word:"Languid",definition:"Slow and relaxed.",options:["honesty","industrious","energetic","serious"],correct:"energetic"},{word:"Levity",definition:"Lack of due respect.",options:["seriousness","introverted","indulge","miserable"],correct:"seriousness"},{word:"Lucid",definition:"Expressed clearly.",options:["narrow","confusing","subtle","permanent"],correct:"confusing"},{word:"Magnanimous",definition:"Generous or forgiving.",options:["stubborn","petty","seriousness","careless"],correct:"petty"},{word:"Malevolent",definition:"Wishing to do evil to others.",options:["depressed","benevolent","intentional","introverted"],correct:"benevolent"},{word:"Mediocre",definition:"Of only moderate quality.",options:["modest","scarce","virtuous","excellent"],correct:"excellent"},{word:"Meticulous",definition:"Showing great attention to detail.",options:["depressed","definite","sloppy","modest"],correct:"sloppy"},{word:"Mitigate",definition:"To make less severe.",options:["aggravate","intentional","confusing","scarce"],correct:"aggravate"},{word:"Morose",definition:"Sullen and ill-tempered.",options:["verbose","cheerful","preserve","generosity"],correct:"cheerful"},{word:"Mundane",definition:"Lacking interest or excitement.",options:["extraordinary","selfish","stubborn","clear"],correct:"extraordinary"},{word:"Nefarious",definition:"Wicked or criminal.",options:["clear","energetic","virtuous","generosity"],correct:"virtuous"},{word:"Obdurate",definition:"Stubbornly refusing to change one's opinion.",options:["yielding","indulge","exciting","generosity"],correct:"yielding"},{word:"Obscure",definition:"Not discovered or known about.",options:["famous","generosity","scarce","neglect"],correct:"famous"},{word:"Obsolete",definition:"No longer produced or used.",options:["stubborn","modern","unproductive","oppose"],correct:"modern"},{word:"Onerous",definition:"Involving a great deal of effort.",options:["persuade","easy","indulge","thorough"],correct:"easy"},{word:"Ostentatious",definition:"Pretentious display.",options:["originality","alleviate","modest","abundance"],correct:"modest"},{word:"Parsimony",definition:"Extreme unwillingness to spend money.",options:["competent","extraordinary","generosity","verbose"],correct:"generosity"},{word:"Partisan",definition:"A strong supporter of a party or cause.",options:["agitation","stubborn","persuade","neutral"],correct:"neutral"},{word:"Penchant",definition:"A strong or habitual liking for something.",options:["dislike","secure","originality","modern"],correct:"dislike"},{word:"Perfunctory",definition:"Carried out with a minimum of effort.",options:["thorough","malevolent","intensify","open"],correct:"thorough"},{word:"Pernicious",definition:"Having a harmful effect.",options:["reckless","harmless","stubborn","easy"],correct:"harmless"},{word:"Placate",definition:"To make someone less angry.",options:["originality","disagree","provoke","changeable"],correct:"provoke"},{word:"Platitude",definition:"A remark that has been used too often to be interesting.",options:["overlook","harmful","respect","originality"],correct:"originality"},{word:"Pausible",definition:"Seeming reasonable or probable.",options:["subtle","abundance","unlikely","virtuous"],correct:"unlikely"},{word:"Precarious",definition:"Not securely held in position.",options:["aggravate","secure","oppose","apathetic"],correct:"secure"},{word:"Prolific",definition:"Producing much fruit or foliage or many offspring.",options:["unproductive","modern","extraordinary","famous"],correct:"unproductive"}];
         
         let currentQuizData = [];
+        let wrongAnswers = [];
         let currentQuestionIndex = 0;
         let score = 0;
         let quizType = '';
+        let selectedWordsForStory = [];
 
         const views = document.querySelectorAll('.view');
         const wotdContent = document.getElementById('wotd-content');
+        const settingsModal = document.getElementById('settings-modal');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const apiKeyStatus = document.getElementById('api-key-status');
         
+        function openSettingsModal() {
+            apiKeyInput.value = localStorage.getItem('geminiApiKey') || '';
+            settingsModal.classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            settingsModal.classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('geminiApiKey', key);
+                apiKeyStatus.textContent = 'API Key saved successfully!';
+                apiKeyStatus.style.color = 'green';
+                setTimeout(() => {
+                    closeSettingsModal();
+                    apiKeyStatus.textContent = '';
+                }, 1500);
+            } else {
+                localStorage.removeItem('geminiApiKey');
+                apiKeyStatus.textContent = 'API Key removed.';
+                apiKeyStatus.style.color = 'red';
+            }
+        }
+
+        function hasApiKey() {
+            return !!localStorage.getItem('geminiApiKey');
+        }
+
         function showView(viewId) {
             views.forEach(view => {
                 if(view.id === viewId) {
@@ -165,11 +218,16 @@
         }
 
         async function callGeminiAPI(prompt, elementToUpdate) {
+            if (!hasApiKey()) {
+                openSettingsModal();
+                elementToUpdate.innerHTML = `<div class="gemini-response text-red-700">Please set your API key first.</div>`;
+                return;
+            }
             elementToUpdate.innerHTML = `<div class="gemini-response">✨ Generating...</div>`;
             
             let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
             const payload = { contents: chatHistory };
-            const apiKey = ""; 
+            const apiKey = localStorage.getItem('geminiApiKey'); 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             
             try {
@@ -187,20 +245,28 @@
                     const text = result.candidates[0].content.parts[0].text;
                     elementToUpdate.innerHTML = `<div class="gemini-response">${text.replace(/\n/g, '<br>')}</div>`;
                 } else {
-                    throw new Error("Invalid response structure from API.");
+                     throw new Error("Invalid response structure from API. Check your API Key.");
                 }
             } catch (error) {
-                elementToUpdate.innerHTML = `<div class="gemini-response text-red-700">Sorry, could not generate a response. Please try again.</div>`;
+                elementToUpdate.innerHTML = `<div class="gemini-response text-red-700">Sorry, an error occurred. Please check your API key and try again.</div>`;
                 console.error("Gemini API call failed:", error);
             }
         }
 
-        function startQuiz(type) {
+        function startQuiz(type, isReview = false) {
             quizType = type;
-            currentQuizData = quizType === 'synonym' ? [...synonymData] : [...antonymData];
-            currentQuizData = shuffleArray(currentQuizData);
+            if (isReview) {
+                currentQuizData = [...wrongAnswers];
+                document.getElementById('results-title').textContent = "Review Complete!";
+            } else {
+                currentQuizData = quizType === 'synonym' ? [...synonymData] : [...antonymData];
+                currentQuizData = shuffleArray(currentQuizData);
+                document.getElementById('results-title').textContent = "Quiz Complete!";
+            }
+            
             currentQuestionIndex = 0;
             score = 0;
+            wrongAnswers = [];
             document.getElementById('quiz-title').textContent = `${type.charAt(0).toUpperCase() + type.slice(1)} Quiz`;
             showView('quiz-view');
             displayQuestion();
@@ -223,7 +289,7 @@
                 const button = document.createElement('button');
                 button.textContent = option;
                 button.classList.add('option-btn', 'p-4', 'border-2', 'border-slate-300', 'rounded-lg', 'hover:bg-slate-100', 'transition-all', 'text-lg', 'transform', 'hover:scale-105');
-                button.onclick = () => selectAnswer(button, option, questionData.correct, questionData.options);
+                button.onclick = () => selectAnswer(button, option, questionData);
                 optionsGrid.appendChild(button);
             });
 
@@ -239,22 +305,23 @@
             document.getElementById('hint-btn').disabled = false;
         }
 
-        function selectAnswer(button, selectedOption, correctOption, allOptions) {
+        function selectAnswer(button, selectedOption, questionData) {
             document.getElementById('hint-btn').classList.add('hidden');
             const options = document.querySelectorAll('.option-btn');
             options.forEach(btn => btn.disabled = true);
 
-            if (selectedOption.toLowerCase() === correctOption.toLowerCase()) {
+            if (selectedOption.toLowerCase() === questionData.correct.toLowerCase()) {
                 score++;
                 button.classList.add('correct');
                 document.getElementById('feedback-text').textContent = "Correct!";
                 document.getElementById('feedback-text').style.color = '#16a34a';
             } else {
+                wrongAnswers.push(questionData);
                 button.classList.add('incorrect');
-                document.getElementById('feedback-text').textContent = `Correct answer: ${correctOption}`;
+                document.getElementById('feedback-text').textContent = `Correct answer: ${questionData.correct}`;
                 document.getElementById('feedback-text').style.color = '#dc2626';
                 options.forEach(btn => {
-                    if (btn.textContent.toLowerCase() === correctOption.toLowerCase()) {
+                    if (btn.textContent.toLowerCase() === questionData.correct.toLowerCase()) {
                         btn.classList.add('correct');
                     }
                 });
@@ -264,7 +331,7 @@
             explainBtn.classList.remove('hidden');
             explainBtn.onclick = () => {
                 const word = document.getElementById('question-word').textContent;
-                const prompt = `Explain the nuanced differences between the word "${word}" and these other words: ${allOptions.join(', ')}. Keep the explanation concise and easy to understand.`;
+                const prompt = `Explain the nuanced differences between the word "${word}" and these other words: ${questionData.options.join(', ')}. Keep the explanation concise and easy to understand.`;
                 const responseArea = document.getElementById('gemini-quiz-response-area');
                 callGeminiAPI(prompt, responseArea);
                 explainBtn.disabled = true;
@@ -298,6 +365,14 @@
             const correctAnswers = finalScore;
             const incorrectAnswers = currentQuizData.length - finalScore;
 
+            const reviewMistakesBtn = document.getElementById('review-mistakes-btn');
+            if(wrongAnswers.length > 0) {
+                reviewMistakesBtn.classList.remove('hidden');
+                reviewMistakesBtn.onclick = () => startQuiz(quizType, true);
+            } else {
+                reviewMistakesBtn.classList.add('hidden');
+            }
+
             const ctx = document.getElementById('results-chart').getContext('2d');
             if(resultsChartInstance) resultsChartInstance.destroy();
             resultsChartInstance = new Chart(ctx, {
@@ -307,7 +382,7 @@
                     datasets: [{
                         data: [correctAnswers, incorrectAnswers],
                         backgroundColor: ['#0ea5e9', '#f43f5e'],
-                        borderColor: ['#ffffff', '#ffffff'],
+                        borderColor: ['#f0f4f8', '#f0f4f8'],
                         borderWidth: 5
                     }]
                 },
@@ -321,6 +396,10 @@
         
         function showReview(type) {
             quizType = type;
+            selectedWordsForStory = [];
+            document.getElementById('story-weaver-response-area').innerHTML = '';
+            updateStoryWeaverButton();
+            
             const data = type === 'synonym' ? synonymData : antonymData;
             document.getElementById('review-title').textContent = `Reviewing ${type.charAt(0).toUpperCase() + type.slice(1)}s`;
             
@@ -336,8 +415,22 @@
                     return;
                 }
 
-                filteredData.forEach((item, index) => {
+                filteredData.forEach((item) => {
                     const uniqueId = `${type}-${item.word.replace(/\s+/g, '')}`;
+                    const cardWrapper = document.createElement('div');
+                    cardWrapper.className = 'relative';
+
+                    const star = document.createElement('div');
+                    star.textContent = '★';
+                    star.className = 'star-checkbox';
+                    if (selectedWordsForStory.includes(item.word)) {
+                        star.classList.add('selected');
+                    }
+                    star.onclick = (e) => {
+                        e.stopPropagation();
+                        toggleWordSelection(item.word, star);
+                    };
+
                     const card = document.createElement('div');
                     card.className = 'flip-card h-64 bg-transparent rounded-lg cursor-pointer';
                     card.onclick = (e) => {
@@ -347,11 +440,11 @@
                     card.innerHTML = `
                         <div class="flip-card-inner rounded-lg">
                             <div class="flip-card-front bg-white border border-slate-200">
-                                <h3 class="text-3xl font-bold text-slate-800">${item.word}</h3>
+                                <h3 class="text-3xl font-bold text-slate-800 p-4">${item.word}</h3>
                             </div>
                             <div class="flip-card-back bg-slate-800 text-white">
                                 <div class="flex flex-col items-center justify-between h-full">
-                                    <div class="flex-grow">
+                                    <div class="flex-grow flex flex-col justify-center">
                                         <p class="text-sm font-bold uppercase tracking-wider text-sky-400">${type}</p>
                                         <p class="text-2xl font-bold mb-2">${item.correct}</p>
                                         <p class="text-slate-300">${item.definition}</p>
@@ -364,7 +457,9 @@
                             </div>
                         </div>
                     `;
-                    flashcardContainer.appendChild(card);
+                    cardWrapper.appendChild(star);
+                    cardWrapper.appendChild(card);
+                    flashcardContainer.appendChild(cardWrapper);
                 });
 
                 filteredData.forEach((item) => {
@@ -385,11 +480,49 @@
             showView('review-view');
         }
 
+        function toggleWordSelection(word, starElement) {
+            const index = selectedWordsForStory.indexOf(word);
+            if (index > -1) {
+                selectedWordsForStory.splice(index, 1);
+                starElement.classList.remove('selected');
+            } else {
+                if (selectedWordsForStory.length < 5) {
+                    selectedWordsForStory.push(word);
+                    starElement.classList.add('selected');
+                } else {
+                    alert("You can select a maximum of 5 words.");
+                }
+            }
+            updateStoryWeaverButton();
+        }
+
+        function updateStoryWeaverButton() {
+            const btn = document.getElementById('story-weaver-btn');
+            const count = selectedWordsForStory.length;
+            if (count >= 2 && count <= 5) {
+                btn.disabled = false;
+                btn.textContent = `✨ Weave a Story (${count} words)`;
+            } else {
+                btn.disabled = true;
+                btn.textContent = '✨ Weave a Story';
+            }
+        }
+        
+        document.getElementById('story-weaver-btn').addEventListener('click', () => {
+            const prompt = `Write a short, coherent paragraph that correctly uses all of the following words: ${selectedWordsForStory.join(', ')}.`;
+            const responseArea = document.getElementById('story-weaver-response-area');
+            callGeminiAPI(prompt, responseArea);
+        });
+
         async function getWordOfTheDay() {
+            if (!hasApiKey()) {
+                 wotdContent.innerHTML = `<p class="text-slate-400">Please set your API key in settings ⚙️ to enable AI features.</p>`;
+                 return;
+            }
             const prompt = "Give me one interesting, advanced English word, followed by a colon, and then its concise definition. For example: 'Ephemeral: lasting for a very short time.'";
             let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
             const payload = { contents: chatHistory };
-            const apiKey = ""; 
+            const apiKey = localStorage.getItem('geminiApiKey'); 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             
             try {
@@ -407,7 +540,7 @@
                     <p class="text-slate-300">${definition.trim()}</p>
                 `;
             } catch (error) {
-                wotdContent.innerHTML = `<p class="text-slate-400">Could not load word. Please try again later.</p>`;
+                wotdContent.innerHTML = `<p class="text-slate-400">Could not load word. Please check your API key.</p>`;
             }
         }
 
